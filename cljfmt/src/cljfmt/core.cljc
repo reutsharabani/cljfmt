@@ -59,6 +59,12 @@
 (defn- element? [zloc]
   (and zloc (not (z/whitespace-or-comment? zloc))))
 
+(defn- comment? [zloc]
+  (some-> zloc z/node n/comment?))
+
+(defn- line-break? [zloc]
+  (or (z/linebreak? zloc) (comment? zloc)))
+
 (defn- reader-macro? [zloc]
   (and zloc (= (n/tag (z/node zloc)) :reader-macro)))
 
@@ -139,8 +145,27 @@
          (and align-args
               (align-args zloc-pos)))))
 
+(defn- sexpr-able? [zloc]
+  (try
+    (z/sexpr zloc)
+    true
+    (catch Exception _e
+      false)))
+
+(defn- multiline? [zloc]
+  (z/find (z/down zloc) z/right* line-break?))
+
+(defn- align-candidate? [zloc]
+  (and (multiline? zloc)
+       (sexpr-able? zloc)))
+
+(defn- align-binding? [zloc align-bindings-args]
+  (and (binding? zloc align-bindings-args)
+       (align-candidate? zloc)))
+
 (defn- align-map? [zloc]
-  (z/map? zloc))
+  (and (z/map? zloc)
+       (align-candidate? zloc)))
 
 (defn insert-missing-whitespace [form]
   (transform form edit-all missing-whitespace? z/insert-space-right))
@@ -149,7 +174,7 @@
   ([form]
    (align-bindings form default-align-bindings-args))
   ([form align-bindings-args]
-   (transform form edit-all #(binding? % align-bindings-args) align-binding)))
+   (transform form edit-all #(align-binding? % align-bindings-args) align-binding)))
 
 (defn- align-maps [form]
   (transform form edit-all align-map? align-map))
@@ -157,14 +182,8 @@
 (defn- space? [zloc]
   (= (z/tag zloc) :whitespace))
 
-(defn- comment? [zloc]
-  (some-> zloc z/node n/comment?))
-
 (defn- comma? [zloc]
   (some-> zloc z/node n/comma?))
-
-(defn- line-break? [zloc]
-  (or (z/linebreak? zloc) (comment? zloc)))
 
 (defn- skip-whitespace [zloc]
   (z/skip z/next* space? zloc))

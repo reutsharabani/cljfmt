@@ -1470,34 +1470,44 @@
             " :longer 2}"]
            {:align-maps? true})))))
 
-(deftest test-align-associative-abnormal
-  (testing "abnormal test cases"
-    (testing "indentation off #1"
+(deftest test-align-associative-abnormal-1
+    (testing "cljs map values"
       (is (reformats-to?
-           ["{  :a 1"
-            " :longer 2}"]
-           ["{:a      1"
-            " :longer 2}"]
-           {:align-maps? true})))
-    (testing "indentation off #2"
+            ["{:indents {'thing.core/defthing [[:inner 0]]"
+             "'let [[:inner 0]]}"
+             "#?@(:cljs [:alias-map {}])}"]
+            ["{:indents {'thing.core/defthing [[:inner 0]]"
+             "           'let                 [[:inner 0]]}"
+             " #?@(:cljs [:alias-map {}])}"]
+            {:align-maps? true}))))
+
+(deftest test-align-associative-abnormal-2
+  (testing "indentation off #1"
+    (is (reformats-to?
+          ["{  :a 1"
+           " :longer 2}"]
+          ["{:a      1"
+           " :longer 2}"]
+          {:align-maps? true})))
+  (testing "indentation off #2"
+    (is (reformats-to?
+          ["{  :a     1"
+           " :longer 2}"]
+          ["{:a      1"
+           " :longer 2}"]
+          {:align-maps? true})))
+  (testing "indentation off #3"
+    (is (reformats-to?
+          ["{:a           1"
+           " :longer 2}"]
+          ["{:a      1"
+           " :longer 2}"]
+          {:align-maps? true})))
+  (testing "future effort?"
+    (testing "multi-value line"
       (is (reformats-to?
-           ["{  :a     1"
-            " :longer 2}"]
-           ["{:a      1"
-            " :longer 2}"]
-           {:align-maps? true})))
-    (testing "indentation off #3"
-      (is (reformats-to?
-           ["{:a           1"
-            " :longer 2}"]
-           ["{:a      1"
-            " :longer 2}"]
-           {:align-maps? true})))
-    (testing "future effort?"
-      (testing "multi-value line"
-        (is (reformats-to?
-             ["{:a 1 :b 2"
-              " :longer 2}"]
-             ["{:a      1 :b      2"
-              " :longer 2}"]
-             {:align-maps? true}))))))
+            ["{:a 1 :b 2"
+             " :longer 2}"]
+            ["{:a      1 :b      2"
+             " :longer 2}"]
+            {:align-maps? true})))))
