@@ -82,7 +82,6 @@
          str
          count)))
 
-
 (defn- aligner [zloc max-length align?]
   (cond
     (zero? max-length)  (z/up zloc)
