@@ -71,8 +71,89 @@
        (not (namespaced-map? (z/up* zloc)))
        (element? (z/right* zloc))))
 
+(def ^:private default-align-bindings-args
+  (read-resource "cljfmt/align_bindings/clojure.clj"))
+
+(defn- ks->max-length [ks]
+  (if (empty? ks)
+    0
+    (->> ks
+         (apply max-key (comp count str))
+         str
+         count)))
+
+
+(defn- aligner [zloc max-length align?]
+  (cond
+    (zero? max-length)  (z/up zloc)
+    (z/rightmost? zloc) (z/up zloc)
+    align?              (let [clean-zloc (-> zloc
+                                             z/right*
+                                             (z/replace (n/whitespace-node " "))
+                                             z/left)
+                              to-add     (->> clean-zloc
+                                              z/sexpr
+                                              str
+                                              count
+                                              (- max-length))
+                              new-zloc   (z/insert-space-right clean-zloc to-add)]
+                          (aligner (z/right new-zloc) max-length false))
+    :else               (aligner (z/right zloc) max-length true)))
+
+(defn- align-binding [zloc]
+  (let [se         (z/sexpr zloc)
+        ks         (take-nth 2 se)
+        max-length (ks->max-length ks)
+        bindings   (z/down zloc)]
+    (if bindings
+      (aligner bindings max-length true)
+      zloc)))
+
+(defn- align-map [zloc]
+  (let [se         (z/sexpr zloc)
+        ks         (keys se)
+        max-length (ks->max-length ks)
+        kvs        (z/down zloc)]
+    (if kvs
+      (aligner kvs max-length true)
+      zloc)))
+
+(defn- sibling-distance [left right]
+  (if (= left right)
+    0
+    (if (z/rightmost? left)
+      nil
+      (when-let [d (sibling-distance (z/right left) right)]
+        (+ 1 d)))))
+
+(defn- binding? [zloc align-bindings-args]
+  (and (z/vector? zloc)
+       (-> zloc z/sexpr count even?)
+       (let [sexpr-type (-> zloc
+                            z/leftmost
+                            z/value)
+             zloc-pos   (-> zloc
+                            z/leftmost
+                            (sibling-distance zloc)
+                            dec)
+             align-args (align-bindings-args sexpr-type)]
+         (and align-args
+              (align-args zloc-pos)))))
+
+(defn- align-map? [zloc]
+  (z/map? zloc))
+
 (defn insert-missing-whitespace [form]
   (transform form edit-all missing-whitespace? z/insert-space-right))
+
+(defn- align-bindings
+  ([form]
+   (align-bindings form default-align-bindings-args))
+  ([form align-bindings-args]
+   (transform form edit-all #(binding? % align-bindings-args) align-binding)))
+
+(defn- align-maps [form]
+  (transform form edit-all align-map? align-map))
 
 (defn- space? [zloc]
   (= (z/tag zloc) :whitespace))
@@ -493,7 +574,10 @@
    :remove-trailing-whitespace?           true
    :split-keypairs-over-multiple-lines?   false
    :sort-ns-references?                   false
-   :indents   default-indents
+   :align-bindings?                       false
+   :align-maps?                           false
+   :indents                               default-indents
+   :align-bindings-args                   default-align-bindings-args
    :alias-map {}})
 
 (defn reformat-form
@@ -512,6 +596,10 @@
            remove-surrounding-whitespace)
          (cond-> (:insert-missing-whitespace? opts)
            insert-missing-whitespace)
+         (cond-> (:align-maps? opts)
+           align-maps)
+         (cond-> (:align-bindings? opts)
+           (align-bindings (:align-bindings-args opts)))
          (cond-> (:remove-multiple-non-indenting-spaces? opts)
            remove-multiple-non-indenting-spaces)
          (cond-> (:indentation? opts)
