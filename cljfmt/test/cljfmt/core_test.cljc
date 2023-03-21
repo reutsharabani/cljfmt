@@ -1470,18 +1470,27 @@
             " :longer 2}"]
            {:align-maps? true})))))
 
-(deftest test-align-associative-abnormal-1
-    (testing "cljs map values"
-      (is (reformats-to?
-            ["{:indents {'thing.core/defthing [[:inner 0]]"
-             "'let [[:inner 0]]}"
-             "#?@(:cljs [:alias-map {}])}"]
-            ["{:indents {'thing.core/defthing [[:inner 0]]"
-             "           'let                 [[:inner 0]]}"
-             " #?@(:cljs [:alias-map {}])}"]
-            {:align-maps? true}))))
+(deftest test-align-associative-abnormal
+  (testing "idnentation after align"
 
-(deftest test-align-associative-abnormal-2
+    (is (reformats-to?
+          ["(def m {{:a 1"
+           ":b 2} [x"
+           "y]"
+           ":d [z]})"]
+          ["(def m {{:a 1"
+           "         :b 2} [x"
+           "                y]"
+           "        :d [z]})"])))
+  (testing "cljs map values"
+    (is (reformats-to?
+          ["{:indents {'thing.core/defthing [[:inner 0]]"
+           "'let [[:inner 0]]}"
+           "#?@(:cljs [:alias-map {}])}"]
+          ["{:indents {'thing.core/defthing [[:inner 0]]"
+           "           'let                 [[:inner 0]]}"
+           " #?@(:cljs [:alias-map {}])}"]
+          {:align-maps? true})))
   (testing "indentation off #1"
     (is (reformats-to?
           ["{  :a 1"
