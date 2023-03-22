@@ -560,6 +560,20 @@
 (defn align-maps [form]
   (transform form edit-all z/map? align-form-columns))
 
+(def ^:private default-aligns
+  (read-resource "cljfmt/align/clojure.clj"))
+
+(defn alignable? [aligns form]
+  (let [zloc (-> form z/of-node first)]
+    (when (and (not (z/whitespace-or-comment? zloc))
+               (z/list? (z/up zloc)))
+      (let [form-type (some-> zloc z/up z/down z/string symbol)]
+        (when-let [alignable-indices (aligns form-type)]
+          (contains? alignable-indices (-> zloc index-of dec)))))))
+
+(defn align-forms [form aligns]
+  (transform form edit-all (partial alignable? aligns) align-form-columns))
+
 (def default-options
   {:indentation?                          true
    :insert-missing-whitespace?            true
@@ -570,6 +584,8 @@
    :split-keypairs-over-multiple-lines?   false
    :sort-ns-references?                   false
    :align-maps?                           false
+   :align-forms?                          false
+   :aligns    default-aligns
    :indents   default-indents
    :alias-map {}})
 
@@ -593,6 +609,8 @@
            remove-multiple-non-indenting-spaces)
          (cond-> (:align-maps? opts)
            align-maps)
+         (cond-> (:align-forms? opts)
+           (align-forms (:aligns opts)))
          (cond-> (:indentation? opts)
            (reindent (:indents opts) (:alias-map opts)))
          (cond-> (:remove-trailing-whitespace? opts)

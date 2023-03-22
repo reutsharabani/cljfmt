@@ -1337,6 +1337,75 @@
         "   [c]))"]
        {:sort-ns-references? true})))
 
+(deftest test-align-forms
+  (testing "straightforward test cases"
+    (testing "sanity"
+      (is (reformats-to?
+            ["(def x 1)"]
+            ["(def x 1)"]
+            {:align-forms? true})))
+    (testing "no op 2"
+      (is (reformats-to?
+            ["(let [x 1"
+             "      y 2])"]
+            ["(let [x 1"
+             "      y 2])"]
+            {:align-forms? true})))
+    (testing "no op 1"
+      (is (reformats-to?
+            ["(let [x 1])"]
+            ["(let [x 1])"]
+            {:align-forms? true})))
+    (testing "empty"
+      (is (reformats-to?
+            ["(let [])"]
+            ["(let [])"]
+            {:align-forms? true})))
+    (testing "simple"
+      (is (reformats-to?
+            ["(let [x 1"
+             "      longer 2])"]
+            ["(let [x      1"
+             "      longer 2])"]
+            {:align-forms? true})))
+    (testing "nested align"
+      (is (reformats-to?
+            ["(let [x (let [x 1"
+             "     longer 2])"
+             " longer 2])"]
+            ["(let [x      (let [x      1"
+             "                   longer 2])"
+             "      longer 2])"]
+            {:align-forms? true})))
+    (testing "preserves comments"
+      (is (reformats-to?
+            ["(let [a 1 ;; comment"
+             "      longer 2])"]
+            ["(let [a      1 ;; comment"
+             "      longer 2])"]
+            {:align-forms? true})))
+    (testing "align args"
+      (testing "simple"
+        (is (reformats-to?
+              ["(special something [a 1"
+               "                    longer 2])"]
+              ["(special something [a      1"
+               "                    longer 2])"]
+              {:align-forms? true
+               :aligns       {'special #{1}}})))
+      (testing "don't mixup args"
+        (is (reformats-to?
+              ["(special [a 1"
+               "          longer 2]"
+               "         [a 1"
+               "          longer 2])"]
+              ["(special [a 1"
+               "          longer 2]"
+               "         [a      1"
+               "          longer 2])"]
+              {:align-forms? true
+               :aligns {'special #{1}}}))))))
+
 (deftest test-align-maps
   (testing "straightforward test cases"
     (testing "sanity"
